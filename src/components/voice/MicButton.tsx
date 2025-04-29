@@ -2,9 +2,10 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff } from "lucide-react";
+import { SpeechRecognitionStatus } from "@/utils/speechRecognition";
 
 interface MicButtonProps {
-  status: string;
+  status: SpeechRecognitionStatus;
   onClick: () => void;
 }
 

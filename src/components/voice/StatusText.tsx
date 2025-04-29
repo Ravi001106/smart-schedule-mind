@@ -1,8 +1,9 @@
 
 import React from "react";
+import { SpeechRecognitionStatus } from "@/utils/speechRecognition";
 
 interface StatusTextProps {
-  status: string;
+  status: SpeechRecognitionStatus;
 }
 
 const StatusText = ({ status }: StatusTextProps) => {

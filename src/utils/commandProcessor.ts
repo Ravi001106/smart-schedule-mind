@@ -1,8 +1,13 @@
 
 import { toast } from "@/hooks/use-toast";
 import { addReminder, parseDateFromText } from "@/services/reminderService";
+import { SpeechRecognitionStatus } from "@/utils/speechRecognition";
 
-export const processVoiceCommand = (text: string, onNewReminder: () => void, setStatus: (status: string) => void) => {
+export const processVoiceCommand = (
+  text: string, 
+  onNewReminder: () => void, 
+  setStatus: (status: SpeechRecognitionStatus) => void
+) => {
   setStatus('processing');
   
   // Normalize the text
