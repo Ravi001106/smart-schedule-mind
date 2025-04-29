@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 
 export interface Reminder {
@@ -93,6 +92,29 @@ const completeReminder = (id: string): Reminder | null => {
   return updateReminder(id, { isCompleted: true });
 };
 
+// Audio objects cache to prevent issues with multiple audio instances
+const audioCache: Record<string, HTMLAudioElement> = {};
+
+// Preload audio files to ensure they're ready to play
+const preloadAudioFiles = () => {
+  const audioSources = {
+    'alarm': 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
+    'ring': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3',
+    'call': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3'
+  };
+  
+  Object.entries(audioSources).forEach(([type, src]) => {
+    const audio = new Audio();
+    audio.src = src;
+    audio.preload = 'auto';
+    audio.load(); // Explicitly load the audio file
+    audioCache[type] = audio;
+  });
+};
+
+// Initialize the audio cache when the module loads
+preloadAudioFiles();
+
 // Check if there are any reminders due now
 const checkDueReminders = (): void => {
   const now = new Date();
@@ -118,29 +140,69 @@ const checkDueReminders = (): void => {
 
 // Play notification sound based on type
 const playNotificationSound = (type: 'alarm' | 'ring' | 'call'): void => {
-  // In a real app, we would play different sounds based on the type
   console.log(`Playing ${type} sound`);
   
-  // Example of playing a sound:
-  const audio = new Audio();
-  
-  switch (type) {
-    case 'alarm':
-      audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3';
-      break;
-    case 'ring':
-      audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3';
-      break;
-    case 'call':
-      audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3';
-      break;
+  try {
+    // Get the cached audio or create a new one if not available
+    let audio = audioCache[type];
+    
+    if (!audio) {
+      audio = new Audio();
+      
+      switch (type) {
+        case 'alarm':
+          audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3';
+          break;
+        case 'ring':
+          audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3';
+          break;
+        case 'call':
+          audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3';
+          break;
+      }
+      
+      // Save to cache for future use
+      audioCache[type] = audio;
+    }
+    
+    // Reset the audio to the beginning and play it
+    audio.currentTime = 0;
+    
+    // Set audio to loop a few times for longer notification
+    let playCount = 0;
+    const maxPlays = 3;
+    
+    audio.onended = () => {
+      playCount++;
+      if (playCount < maxPlays) {
+        audio.currentTime = 0;
+        audio.play().catch(e => console.error('Failed to replay notification sound:', e));
+      }
+    };
+    
+    // Play the sound with a Promise to catch any errors
+    const playPromise = audio.play();
+    
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.error('Audio playback failed:', error);
+        // Try an alternative approach for browsers with autoplay restrictions
+        document.addEventListener('click', function audioUnlock() {
+          audio.play().catch(e => console.error('Still failed to play after user interaction:', e));
+          document.removeEventListener('click', audioUnlock);
+        });
+      });
+    }
+  } catch (error) {
+    console.error('Error playing notification sound:', error);
   }
-  
-  audio.play().catch(e => console.error('Failed to play notification sound:', e));
 };
 
 // Initialize reminder checker - check every 30 seconds
 const initReminderChecker = (): () => void => {
+  // Immediately check for any due reminders
+  checkDueReminders();
+  
   const intervalId = setInterval(checkDueReminders, 30000);
   return () => clearInterval(intervalId);
 };
