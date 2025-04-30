@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import { addReminder, ringtones, getAllCustomRingtones } from '@/services/remind
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Volume2, Music, PlusCircle } from "lucide-react";
 import CustomRingtoneModal from './CustomRingtoneModal';
+import { toast } from 'react-toastify';
 
 interface ReminderFormProps {
   onAddReminder: () => void;
@@ -47,15 +47,34 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
       return;
     }
     
+    // Create a new audio element for each preview
     const audio = new Audio(allRingtones[ringtoneKey]);
     audio.volume = 0.5; // Lower volume for preview
-    audio.play().catch(e => console.error('Failed to play ringtone preview:', e));
     
-    // Stop after 2 seconds
-    setTimeout(() => {
-      audio.pause();
-      audio.currentTime = 0;
-    }, 2000);
+    // Try to play, and provide feedback if it fails
+    audio.play()
+      .then(() => {
+        console.log('Ringtone preview playing:', ringtoneKey);
+        // Stop after 2 seconds
+        setTimeout(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }, 2000);
+      })
+      .catch(e => {
+        console.error('Failed to play ringtone preview:', e);
+        // Try after a click if browser requires user interaction
+        document.addEventListener('click', function playOnce() {
+          audio.play().catch(err => console.error('Still failed to play after user interaction:', err));
+          document.removeEventListener('click', playOnce);
+        }, { once: true });
+        
+        toast({
+          title: "Audio Playback Issue",
+          description: "Click anywhere on the page to enable sound playback.",
+          variant: "default",
+        });
+      });
   };
   
   const handleSubmit = (e: React.FormEvent) => {

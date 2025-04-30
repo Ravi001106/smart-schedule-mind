@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 
 export interface Reminder {
@@ -153,7 +152,6 @@ const preloadAudioFiles = () => {
     audio.src = src;
     audio.preload = 'auto';
     audio.load(); // Explicitly load the audio file
-    audioCache[type] = audio;
   });
   
   // Preload custom ringtones
@@ -163,11 +161,10 @@ const preloadAudioFiles = () => {
     audio.src = src;
     audio.preload = 'auto';
     audio.load();
-    audioCache[type] = audio;
   });
 };
 
-// Initialize the audio cache when the module loads
+// Initialize audio preloading when the module loads
 preloadAudioFiles();
 
 // Check if there are any reminders due now
@@ -212,19 +209,11 @@ const playNotificationSound = (type: 'alarm' | 'ring' | 'call', customRingtone?:
                  type === 'ring' ? 'gentle' : 'urgent';
     }
     
-    // Get the cached audio or create a new one if not available
-    let audio = audioCache[soundKey];
+    // Create a new audio element for each play to avoid issues
+    const audio = new Audio(allRingtones[soundKey]);
     
-    if (!audio) {
-      audio = new Audio();
-      audio.src = allRingtones[soundKey];
-      
-      // Save to cache for future use
-      audioCache[soundKey] = audio;
-    }
-    
-    // Reset the audio to the beginning and play it
-    audio.currentTime = 0;
+    // Set volume to full
+    audio.volume = 1.0;
     
     // Set audio to loop a few times for longer notification
     let playCount = 0;
@@ -233,24 +222,37 @@ const playNotificationSound = (type: 'alarm' | 'ring' | 'call', customRingtone?:
     audio.onended = () => {
       playCount++;
       if (playCount < maxPlays) {
-        audio.currentTime = 0;
-        audio.play().catch(e => console.error('Failed to replay notification sound:', e));
+        setTimeout(() => {
+          audio.play().catch(e => console.error('Failed to replay notification sound:', e));
+        }, 500); // Adding a small delay between plays
       }
     };
     
-    // Play the sound with a Promise to catch any errors
-    const playPromise = audio.play();
-    
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.error('Audio playback failed:', error);
-        // Try an alternative approach for browsers with autoplay restrictions
-        document.addEventListener('click', function audioUnlock() {
-          audio.play().catch(e => console.error('Still failed to play after user interaction:', e));
-          document.removeEventListener('click', audioUnlock);
+    // Make sure we have user interaction before playing
+    document.addEventListener('click', function unlockAudio() {
+      audio.play()
+        .then(() => {
+          console.log("Audio playback started successfully");
+          document.removeEventListener('click', unlockAudio);
+        })
+        .catch(error => {
+          console.error('Audio playback failed:', error);
+          // Create a fallback notification with sound
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          oscillator.type = 'sine';
+          oscillator.frequency.value = 800;
+          oscillator.connect(audioContext.destination);
+          oscillator.start();
+          setTimeout(() => oscillator.stop(), 1000);
         });
-      });
-    }
+    }, { once: true });
+    
+    // Try to play immediately as well (might work if user already interacted)
+    audio.play()
+      .then(() => console.log("Audio playback started successfully"))
+      .catch(e => console.log("Waiting for user interaction to play audio"));
+    
   } catch (error) {
     console.error('Error playing notification sound:', error);
   }
