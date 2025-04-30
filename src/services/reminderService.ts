@@ -1,3 +1,4 @@
+
 import { toast } from "@/hooks/use-toast";
 
 export interface Reminder {
@@ -9,7 +10,17 @@ export interface Reminder {
   notificationType: 'alarm' | 'ring' | 'call';
   priority: 'normal' | 'urgent';
   createdAt: Date;
+  ringtone?: string;
 }
+
+// Available ringtones with their URLs
+export const ringtones = {
+  'classic': 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
+  'gentle': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3',
+  'urgent': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3',
+  'bell': 'https://assets.mixkit.co/sfx/preview/mixkit-elevator-tone-2864.mp3',
+  'chime': 'https://assets.mixkit.co/sfx/preview/mixkit-interface-hint-notification-911.mp3',
+};
 
 // Mock database using localStorage
 const STORAGE_KEY = 'voice-reminders';
@@ -97,13 +108,7 @@ const audioCache: Record<string, HTMLAudioElement> = {};
 
 // Preload audio files to ensure they're ready to play
 const preloadAudioFiles = () => {
-  const audioSources = {
-    'alarm': 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
-    'ring': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3',
-    'call': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3'
-  };
-  
-  Object.entries(audioSources).forEach(([type, src]) => {
+  Object.entries(ringtones).forEach(([type, src]) => {
     const audio = new Audio();
     audio.src = src;
     audio.preload = 'auto';
@@ -133,36 +138,33 @@ const checkDueReminders = (): void => {
         duration: 10000,
       });
       
-      playNotificationSound(reminder.notificationType);
+      playNotificationSound(reminder.notificationType, reminder.ringtone);
     }
   });
 };
 
-// Play notification sound based on type
-const playNotificationSound = (type: 'alarm' | 'ring' | 'call'): void => {
-  console.log(`Playing ${type} sound`);
+// Play notification sound based on type and selected ringtone
+const playNotificationSound = (type: 'alarm' | 'ring' | 'call', customRingtone?: string): void => {
+  console.log(`Playing ${customRingtone || type} sound`);
   
   try {
+    // Determine which sound to play
+    let soundKey = customRingtone || type;
+    if (!ringtones[soundKey]) {
+      // Fallback to type-based sounds if custom ringtone not found
+      soundKey = type === 'alarm' ? 'classic' : 
+                 type === 'ring' ? 'gentle' : 'urgent';
+    }
+    
     // Get the cached audio or create a new one if not available
-    let audio = audioCache[type];
+    let audio = audioCache[soundKey];
     
     if (!audio) {
       audio = new Audio();
-      
-      switch (type) {
-        case 'alarm':
-          audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3';
-          break;
-        case 'ring':
-          audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3';
-          break;
-        case 'call':
-          audio.src = 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3';
-          break;
-      }
+      audio.src = ringtones[soundKey];
       
       // Save to cache for future use
-      audioCache[type] = audio;
+      audioCache[soundKey] = audio;
     }
     
     // Reset the audio to the beginning and play it

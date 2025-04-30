@@ -7,7 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { addReminder, Reminder } from '@/services/reminderService';
+import { addReminder, ringtones } from '@/services/reminderService';
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Volume2, Music } from "lucide-react";
 
 interface ReminderFormProps {
   onAddReminder: () => void;
@@ -19,6 +21,20 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
   const [dateTime, setDateTime] = useState('');
   const [priority, setPriority] = useState<'normal' | 'urgent'>('normal');
   const [notificationType, setNotificationType] = useState<'alarm' | 'ring' | 'call'>('alarm');
+  const [selectedRingtone, setSelectedRingtone] = useState('classic');
+  
+  // Function to play a preview of the selected ringtone
+  const playRingtonePreview = (ringtoneKey: string) => {
+    const audio = new Audio(ringtones[ringtoneKey]);
+    audio.volume = 0.5; // Lower volume for preview
+    audio.play().catch(e => console.error('Failed to play ringtone preview:', e));
+    
+    // Stop after 2 seconds
+    setTimeout(() => {
+      audio.pause();
+      audio.currentTime = 0;
+    }, 2000);
+  };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +46,8 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
       description,
       dateTime: new Date(dateTime),
       priority,
-      notificationType
+      notificationType,
+      ringtone: selectedRingtone
     });
     
     // Reset form
@@ -106,6 +123,53 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
               <SelectItem value="alarm">Alarm</SelectItem>
               <SelectItem value="ring">Ring</SelectItem>
               <SelectItem value="call">Call</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div>
+          <Label htmlFor="ringtone" className="flex items-center gap-2">
+            Ringtone
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" type="button">
+                  <Volume2 className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80">
+                <div className="grid gap-2">
+                  <h3 className="font-medium">Preview Ringtones</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Click on a ringtone to hear a preview
+                  </p>
+                  <div className="mt-2 grid gap-2">
+                    {Object.keys(ringtones).map((tone) => (
+                      <Button 
+                        key={tone} 
+                        variant="outline" 
+                        className="justify-start"
+                        onClick={() => playRingtonePreview(tone)}
+                        type="button"
+                      >
+                        <Music className="mr-2 h-4 w-4" />
+                        {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </Label>
+          <Select value={selectedRingtone} onValueChange={setSelectedRingtone}>
+            <SelectTrigger id="ringtone">
+              <SelectValue placeholder="Select a ringtone" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.keys(ringtones).map((tone) => (
+                <SelectItem key={tone} value={tone}>
+                  {tone.charAt(0).toUpperCase() + tone.slice(1)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
