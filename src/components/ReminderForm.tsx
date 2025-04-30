@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { addReminder, ringtones } from '@/services/reminderService';
+import { addReminder, ringtones, getAllCustomRingtones } from '@/services/reminderService';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Volume2, Music } from "lucide-react";
+import { Volume2, Music, PlusCircle } from "lucide-react";
+import CustomRingtoneModal from './CustomRingtoneModal';
 
 interface ReminderFormProps {
   onAddReminder: () => void;
@@ -22,10 +23,31 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
   const [priority, setPriority] = useState<'normal' | 'urgent'>('normal');
   const [notificationType, setNotificationType] = useState<'alarm' | 'ring' | 'call'>('alarm');
   const [selectedRingtone, setSelectedRingtone] = useState('classic');
+  const [showCustomRingtoneModal, setShowCustomRingtoneModal] = useState(false);
+  const [customRingtones, setCustomRingtones] = useState(getAllCustomRingtones());
+  
+  // Function to refresh the custom ringtones list
+  const refreshCustomRingtones = () => {
+    setCustomRingtones(getAllCustomRingtones());
+  };
+  
+  // Get all available ringtones (default + custom)
+  const getAllRingtones = () => {
+    return {
+      ...ringtones,
+      ...customRingtones
+    };
+  };
   
   // Function to play a preview of the selected ringtone
   const playRingtonePreview = (ringtoneKey: string) => {
-    const audio = new Audio(ringtones[ringtoneKey]);
+    const allRingtones = getAllRingtones();
+    if (!allRingtones[ringtoneKey]) {
+      console.error('Ringtone not found:', ringtoneKey);
+      return;
+    }
+    
+    const audio = new Audio(allRingtones[ringtoneKey]);
     audio.volume = 0.5; // Lower volume for preview
     audio.play().catch(e => console.error('Failed to play ringtone preview:', e));
     
@@ -128,54 +150,85 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
         </div>
         
         <div>
-          <Label htmlFor="ringtone" className="flex items-center gap-2">
-            Ringtone
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" type="button">
-                  <Volume2 className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <div className="grid gap-2">
-                  <h3 className="font-medium">Preview Ringtones</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Click on a ringtone to hear a preview
-                  </p>
-                  <div className="mt-2 grid gap-2">
-                    {Object.keys(ringtones).map((tone) => (
-                      <Button 
-                        key={tone} 
-                        variant="outline" 
-                        className="justify-start"
-                        onClick={() => playRingtonePreview(tone)}
-                        type="button"
-                      >
-                        <Music className="mr-2 h-4 w-4" />
-                        {tone.charAt(0).toUpperCase() + tone.slice(1)}
-                      </Button>
-                    ))}
+          <div className="flex justify-between items-center mb-2">
+            <Label htmlFor="ringtone" className="flex items-center gap-2">
+              Ringtone
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="icon" type="button">
+                    <Volume2 className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="grid gap-2">
+                    <h3 className="font-medium">Preview Ringtones</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Click on a ringtone to hear a preview
+                    </p>
+                    <div className="mt-2 grid gap-2">
+                      {Object.keys(getAllRingtones()).map((tone) => (
+                        <Button 
+                          key={tone} 
+                          variant="outline" 
+                          className="justify-start"
+                          onClick={() => playRingtonePreview(tone)}
+                          type="button"
+                        >
+                          <Music className="mr-2 h-4 w-4" />
+                          {tone.charAt(0).toUpperCase() + tone.slice(1).replace(/-/g, ' ')}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </Label>
+                </PopoverContent>
+              </Popover>
+            </Label>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              type="button"
+              onClick={() => setShowCustomRingtoneModal(true)}
+              className="h-8 px-2"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" /> 
+              Add Custom
+            </Button>
+          </div>
+          
           <Select value={selectedRingtone} onValueChange={setSelectedRingtone}>
             <SelectTrigger id="ringtone">
               <SelectValue placeholder="Select a ringtone" />
             </SelectTrigger>
             <SelectContent>
-              {Object.keys(ringtones).map((tone) => (
-                <SelectItem key={tone} value={tone}>
-                  {tone.charAt(0).toUpperCase() + tone.slice(1)}
-                </SelectItem>
-              ))}
+              <SelectItem value="classic">Classic</SelectItem>
+              <SelectItem value="gentle">Gentle</SelectItem>
+              <SelectItem value="urgent">Urgent</SelectItem>
+              <SelectItem value="bell">Bell</SelectItem>
+              <SelectItem value="chime">Chime</SelectItem>
+              
+              {/* Custom ringtones */}
+              {Object.keys(customRingtones).length > 0 && (
+                <React.Fragment>
+                  <div className="px-2 py-1.5 text-sm font-semibold">Custom Ringtones</div>
+                  {Object.keys(customRingtones).map((tone) => (
+                    <SelectItem key={tone} value={tone}>
+                      {tone.charAt(0).toUpperCase() + tone.slice(1).replace(/-/g, ' ')}
+                    </SelectItem>
+                  ))}
+                </React.Fragment>
+              )}
             </SelectContent>
           </Select>
         </div>
         
         <Button type="submit" className="w-full">Add Reminder</Button>
       </form>
+      
+      <CustomRingtoneModal 
+        open={showCustomRingtoneModal}
+        onOpenChange={setShowCustomRingtoneModal}
+        onRingtoneAdded={refreshCustomRingtones}
+      />
     </Card>
   );
 };

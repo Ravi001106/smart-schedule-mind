@@ -1,6 +1,6 @@
 
 import { toast } from "@/hooks/use-toast";
-import { addReminder, parseDateFromText } from "@/services/reminderService";
+import { addReminder, parseDateFromText, getAllCustomRingtones, ringtones } from "@/services/reminderService";
 import { SpeechRecognitionStatus } from "@/utils/speechRecognition";
 
 export const processVoiceCommand = (
@@ -21,9 +21,10 @@ export const processVoiceCommand = (
     let dateTime = new Date();
     let priority = 'normal';
     let notificationType = 'alarm';
+    let ringtone = '';
 
     // Extract title (text between "remind me to" and any time indicators)
-    const titleMatch = normalizedText.match(/remind me to (.*?)(?:at|in|tomorrow|when|today|on|by|every|after|before|urgent|important|call|ring|alarm)/i);
+    const titleMatch = normalizedText.match(/remind me to (.*?)(?:at|in|tomorrow|when|today|on|by|every|after|before|urgent|important|call|ring|alarm|with|using)/i);
     if (titleMatch) {
       title = titleMatch[1].trim();
     } else {
@@ -33,7 +34,7 @@ export const processVoiceCommand = (
         title = simpleTitleMatch[1].trim();
       } else {
         // Try "add reminder" format
-        const addReminderMatch = normalizedText.match(/add reminder (.*?)(?:at|in|tomorrow|when|today|on|by|every|after|before|urgent|important|call|ring|alarm)/i);
+        const addReminderMatch = normalizedText.match(/add reminder (.*?)(?:at|in|tomorrow|when|today|on|by|every|after|before|urgent|important|call|ring|alarm|with|using)/i);
         if (addReminderMatch) {
           title = addReminderMatch[1].trim();
         } else {
@@ -63,6 +64,34 @@ export const processVoiceCommand = (
       dateTime = parsedDate;
     }
     
+    // Check for ringtone specification
+    const ringtoneMatch = normalizedText.match(/with (.*?) (?:ringtone|sound|tone)/i) || 
+                          normalizedText.match(/using (.*?) (?:ringtone|sound|tone)/i);
+    
+    if (ringtoneMatch) {
+      const requestedTone = ringtoneMatch[1].toLowerCase().trim();
+      
+      // Get all available ringtones
+      const allRingtones = {
+        ...ringtones,
+        ...getAllCustomRingtones()
+      };
+      
+      // Check for exact match
+      if (allRingtones[requestedTone]) {
+        ringtone = requestedTone;
+      } else {
+        // Check for partial matches
+        const possibleMatches = Object.keys(allRingtones).filter(tone => 
+          tone.includes(requestedTone) || requestedTone.includes(tone)
+        );
+        
+        if (possibleMatches.length > 0) {
+          ringtone = possibleMatches[0]; // Use the first match
+        }
+      }
+    }
+    
     // Capitalize the first letter of the title
     title = title.charAt(0).toUpperCase() + title.slice(1);
     
@@ -73,7 +102,8 @@ export const processVoiceCommand = (
         description,
         dateTime,
         priority: priority as 'normal' | 'urgent',
-        notificationType: notificationType as 'alarm' | 'ring' | 'call'
+        notificationType: notificationType as 'alarm' | 'ring' | 'call',
+        ringtone: ringtone || undefined
       });
       
       onNewReminder();

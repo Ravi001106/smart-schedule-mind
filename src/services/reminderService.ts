@@ -13,13 +13,52 @@ export interface Reminder {
   ringtone?: string;
 }
 
-// Available ringtones with their URLs
+// Available default ringtones with their URLs
 export const ringtones = {
   'classic': 'https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3',
   'gentle': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-short-alarm-993.mp3',
   'urgent': 'https://assets.mixkit.co/sfx/preview/mixkit-classic-alarm-995.mp3',
   'bell': 'https://assets.mixkit.co/sfx/preview/mixkit-elevator-tone-2864.mp3',
   'chime': 'https://assets.mixkit.co/sfx/preview/mixkit-interface-hint-notification-911.mp3',
+};
+
+// Storage key for custom ringtones
+const CUSTOM_RINGTONES_KEY = 'voice-reminders-custom-ringtones';
+
+// Get all custom ringtones
+export const getAllCustomRingtones = (): Record<string, string> => {
+  try {
+    const data = localStorage.getItem(CUSTOM_RINGTONES_KEY);
+    if (!data) return {};
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Failed to load custom ringtones:', error);
+    return {};
+  }
+};
+
+// Add a new custom ringtone
+export const addCustomRingtone = (name: string, url: string): void => {
+  try {
+    const customRingtones = getAllCustomRingtones();
+    customRingtones[name] = url;
+    localStorage.setItem(CUSTOM_RINGTONES_KEY, JSON.stringify(customRingtones));
+  } catch (error) {
+    console.error('Failed to save custom ringtone:', error);
+  }
+};
+
+// Remove a custom ringtone
+export const removeCustomRingtone = (name: string): void => {
+  try {
+    const customRingtones = getAllCustomRingtones();
+    if (customRingtones[name]) {
+      delete customRingtones[name];
+      localStorage.setItem(CUSTOM_RINGTONES_KEY, JSON.stringify(customRingtones));
+    }
+  } catch (error) {
+    console.error('Failed to remove custom ringtone:', error);
+  }
 };
 
 // Mock database using localStorage
@@ -108,11 +147,22 @@ const audioCache: Record<string, HTMLAudioElement> = {};
 
 // Preload audio files to ensure they're ready to play
 const preloadAudioFiles = () => {
+  // Preload default ringtones
   Object.entries(ringtones).forEach(([type, src]) => {
     const audio = new Audio();
     audio.src = src;
     audio.preload = 'auto';
     audio.load(); // Explicitly load the audio file
+    audioCache[type] = audio;
+  });
+  
+  // Preload custom ringtones
+  const customRingtones = getAllCustomRingtones();
+  Object.entries(customRingtones).forEach(([type, src]) => {
+    const audio = new Audio();
+    audio.src = src;
+    audio.preload = 'auto';
+    audio.load();
     audioCache[type] = audio;
   });
 };
@@ -148,9 +198,15 @@ const playNotificationSound = (type: 'alarm' | 'ring' | 'call', customRingtone?:
   console.log(`Playing ${customRingtone || type} sound`);
   
   try {
+    // Get all available ringtones (default + custom)
+    const allRingtones = {
+      ...ringtones,
+      ...getAllCustomRingtones()
+    };
+    
     // Determine which sound to play
     let soundKey = customRingtone || type;
-    if (!ringtones[soundKey]) {
+    if (!allRingtones[soundKey]) {
       // Fallback to type-based sounds if custom ringtone not found
       soundKey = type === 'alarm' ? 'classic' : 
                  type === 'ring' ? 'gentle' : 'urgent';
@@ -161,7 +217,7 @@ const playNotificationSound = (type: 'alarm' | 'ring' | 'call', customRingtone?:
     
     if (!audio) {
       audio = new Audio();
-      audio.src = ringtones[soundKey];
+      audio.src = allRingtones[soundKey];
       
       // Save to cache for future use
       audioCache[soundKey] = audio;
