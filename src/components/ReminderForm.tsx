@@ -10,7 +10,7 @@ import { addReminder, ringtones, getAllCustomRingtones } from '@/services/remind
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Volume2, Music, PlusCircle } from "lucide-react";
 import CustomRingtoneModal from './CustomRingtoneModal';
-import { toast } from 'react-toastify';
+import { toast } from "@/hooks/use-toast";
 
 interface ReminderFormProps {
   onAddReminder: () => void;
