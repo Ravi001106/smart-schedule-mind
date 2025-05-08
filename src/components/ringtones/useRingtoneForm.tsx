@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { addCustomRingtone } from '@/services/ringtones/ringtoneService';
+import { addCustomRingtone } from '@/services/reminderService';
 
 export const useRingtoneForm = (onSuccess: () => void, onClose: () => void) => {
   const [name, setName] = useState('');
