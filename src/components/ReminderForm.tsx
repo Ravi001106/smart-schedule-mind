@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { addReminder, ringtones, getAllCustomRingtones } from '@/services/reminderService';
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Volume2, Music, PlusCircle } from "lucide-react";
-import CustomRingtoneModal from './CustomRingtoneModal';
+import CustomRingtoneModal from './ringtones/CustomRingtoneModal';
 import { toast } from "@/hooks/use-toast";
 
 interface ReminderFormProps {
