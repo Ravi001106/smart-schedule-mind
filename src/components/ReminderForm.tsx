@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,42 +39,64 @@ const ReminderForm = ({ onAddReminder }: ReminderFormProps) => {
     };
   };
   
-  // Function to play a preview of the selected ringtone
+  // Function to play a preview of the selected ringtone with improved error handling
   const playRingtonePreview = (ringtoneKey: string) => {
     const allRingtones = getAllRingtones();
     if (!allRingtones[ringtoneKey]) {
       console.error('Ringtone not found:', ringtoneKey);
+      toast({
+        title: "Ringtone Not Found",
+        description: "The selected ringtone could not be found.",
+        variant: "destructive",
+      });
       return;
     }
     
     // Create a new audio element for each preview
-    const audio = new Audio(allRingtones[ringtoneKey]);
+    const audio = new Audio();
     audio.volume = 0.5; // Lower volume for preview
     
-    // Try to play, and provide feedback if it fails
-    audio.play()
-      .then(() => {
-        console.log('Ringtone preview playing:', ringtoneKey);
-        // Stop after 2 seconds
-        setTimeout(() => {
-          audio.pause();
-          audio.currentTime = 0;
-        }, 2000);
-      })
-      .catch(e => {
-        console.error('Failed to play ringtone preview:', e);
-        // Try after a click if browser requires user interaction
-        document.addEventListener('click', function playOnce() {
-          audio.play().catch(err => console.error('Still failed to play after user interaction:', err));
-          document.removeEventListener('click', playOnce);
-        }, { once: true });
-        
-        toast({
-          title: "Audio Playback Issue",
-          description: "Click anywhere on the page to enable sound playback.",
-          variant: "default",
+    // Add event listeners before setting the source
+    audio.addEventListener('canplaythrough', () => {
+      // Play and stop after 2 seconds
+      audio.play()
+        .then(() => {
+          console.log('Ringtone preview playing:', ringtoneKey);
+          setTimeout(() => {
+            audio.pause();
+            audio.currentTime = 0;
+          }, 2000);
+        })
+        .catch(e => {
+          console.error('Failed to play ringtone preview:', e);
+          handlePlaybackError();
         });
+    }, { once: true });
+    
+    audio.addEventListener('error', (e) => {
+      console.error('Error loading audio:', e);
+      handlePlaybackError();
+    }, { once: true });
+    
+    // For data URLs (from uploaded files), we don't need crossOrigin
+    const soundSrc = allRingtones[ringtoneKey];
+    if (!soundSrc.startsWith('data:')) {
+      audio.crossOrigin = "anonymous";
+    }
+    
+    // Set source and start loading
+    audio.src = soundSrc;
+    audio.load();
+    
+    // Helper function for playback errors
+    function handlePlaybackError() {
+      // Show more helpful error message
+      toast({
+        title: "Audio Playback Issue",
+        description: "Couldn't play this ringtone. Click anywhere and try again, or try a different ringtone.",
+        variant: "destructive",
       });
+    }
   };
   
   const handleSubmit = (e: React.FormEvent) => {
